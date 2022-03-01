@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"snippetbox/pkg/models"
 	"strconv"
+	"text/template"
 )
 
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
@@ -16,7 +17,7 @@ func (app *application) home(w http.ResponseWriter, r *http.Request) {
 
 	s, err := app.snippets.Latest()
 	if err != nil {
-		app.serveError(w, err)
+		app.serverError(w, err)
 		return
 	}
 
@@ -54,12 +55,27 @@ func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, models.ErrNoRecord) {
 			app.notFound(w)
 		} else {
-			app.serveError(w, err)
+			app.serverError(w, err)
 		}
 		return
 	}
 
-	fmt.Fprint(w, "%v", s)
+	files := []string{
+		"./ui/html/show.page.tmpl",
+		"./ui/html/base.layout.tmpl",
+		"./ui/html/footer.partial.tmpl",
+	}
+
+	ts, err := template.ParseFiles(files...)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	err = ts.Execute(w, s)
+	if err != nil {
+		app.serverError(w, err)
+	}
 }
 
 func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
@@ -75,7 +91,7 @@ func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
 
 	id, err := app.snippets.Insert(title, content, expires)
 	if err != nil {
-		app.serveError(w, err)
+		app.serverError(w, err)
 		return
 	}
 
